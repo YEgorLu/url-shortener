@@ -48,7 +48,7 @@ func (c ShortenerController) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(fmt.Sprintf("{\"url\": \"%s\"}", newCode)))
+	w.Write([]byte("http://localhost:8080/" + newCode))
 }
 
 func (c ShortenerController) Redirect(w http.ResponseWriter, r *http.Request) {
@@ -62,5 +62,5 @@ func (c ShortenerController) Redirect(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	http.Redirect(w, r, url, http.StatusMovedPermanently)
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
