@@ -6,21 +6,26 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/server/middleware"
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/storage"
 )
 
 type ShortenerController struct {
 	group *http.ServeMux
+	stor  storage.Storage
 }
 
 func NewShortenerController() *ShortenerController {
-	return &ShortenerController{http.NewServeMux()}
+	return &ShortenerController{
+		http.NewServeMux(),
+		storage.Instance(),
+	}
 }
 
 func (c ShortenerController) RegisterRoute(mux *http.ServeMux) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" && r.Method == http.MethodPost {
-			c.Register(w, r)
+			middleware.Use(http.HandlerFunc(c.Register), middleware.UseContentType("text/html")).ServeHTTP(w, r)
 		} else if r.Method == http.MethodGet && len(strings.SplitN(r.URL.Path, "/", 3)) == 2 {
 			c.Redirect(w, r)
 		} else {
@@ -41,12 +46,13 @@ func (c ShortenerController) Register(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	newCode, err := storage.Instance().AddURL(url)
+	newCode, err := c.stor.AddURL(url)
 	fmt.Println("code ", newCode)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("http://localhost:8080/" + newCode))
 }
@@ -57,7 +63,7 @@ func (c ShortenerController) Redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	code := r.URL.Path[1:]
-	url, err := storage.Instance().GetURLByCode(code)
+	url, err := c.stor.GetURLByCode(code)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
