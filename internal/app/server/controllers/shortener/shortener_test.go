@@ -10,6 +10,7 @@ import (
 
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/storage"
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/util"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -63,12 +64,18 @@ func TestShortenerController_Register(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.args.url))
+			e := echo.New()
 
-			c.Register(w, r)
+			ctx := e.NewContext(r, w)
+			defer e.ReleaseContext(ctx)
+
+			c.Register(ctx)
 
 			res := w.Result()
 
 			assert.Equal(t, tt.want.code, res.StatusCode)
+
+			t.Log("body ", w.Body.String(), res.StatusCode)
 
 			if w.Code != http.StatusCreated {
 				var body []byte
@@ -109,11 +116,13 @@ func TestShortenerController_Redirect(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			code := "somerandomcode"
-
+			e := echo.New()
 			if tt.args.register {
 				wReg := httptest.NewRecorder()
 				rReg := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(tt.args.url))
-				c.Register(wReg, rReg)
+				ctx1 := e.NewContext(rReg, wReg)
+				defer e.ReleaseContext(ctx1)
+				c.Register(ctx1)
 				redirectUrlBytes, err := io.ReadAll(wReg.Result().Body)
 				if err != nil {
 					t.Fatal("Error reading response body")
@@ -123,7 +132,11 @@ func TestShortenerController_Redirect(t *testing.T) {
 			}
 			wRed := httptest.NewRecorder()
 			rRed := httptest.NewRequest(http.MethodGet, "/"+code, nil)
-			c.Redirect(wRed, rRed)
+			ctx2 := e.NewContext(rRed, wRed)
+			ctx2.SetParamNames("code")
+			ctx2.SetParamValues(code)
+			defer e.ReleaseContext(ctx2)
+			c.Redirect(ctx2)
 
 			assert.Equal(t, tt.want.code, wRed.Code)
 		})

@@ -2,51 +2,32 @@ package middleware
 
 import (
 	"log"
-	"net/http"
-	"slices"
 
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/util"
+	"github.com/labstack/echo/v4"
 )
 
-type Middleware func(next http.Handler) http.Handler
-
-func Use(handler http.Handler, middlewares ...Middleware) http.Handler {
-	for _, middleware := range middlewares {
-		handler = middleware(handler)
-	}
-	return handler
-}
-
-func UseMethod(methodNames ...string) Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if slices.Index(methodNames, r.Method) == -1 {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-				return
+func UseContentType(contentTypes ...string) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return echo.HandlerFunc(func(c echo.Context) error {
+			if !util.Intersects(contentTypes, c.Request().Header.Values("Content-Type")) {
+				return echo.ErrUnsupportedMediaType
 			}
-			next.ServeHTTP(w, r)
+			next(c)
+			return nil
 		})
 	}
 }
 
-func UseContentType(contentTypes ...string) Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !util.Intersects(contentTypes, r.Header.Values("Content-Type")) {
-				w.WriteHeader(http.StatusUnsupportedMediaType)
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-func UseLogging() Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func UseLogging() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return echo.HandlerFunc(func(c echo.Context) error {
+			r := c.Request()
+			w := c.Response().Writer
 			log.Printf("Request %s %s %s", r.Method, r.URL, r.Header.Values("Content-Type"))
-			next.ServeHTTP(w, r)
+			next(c)
 			log.Printf("Response %s %s %s %s", r.Method, r.URL, w.Header().Get("Status"), w.Header().Get("Content-Type"))
+			return nil
 		})
 	}
 }

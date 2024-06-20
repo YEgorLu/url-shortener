@@ -1,14 +1,14 @@
 package server
 
 import (
-	"net/http"
-
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/server/controllers"
-	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/server/middleware"
+	"github.com/labstack/echo/v4"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
 )
 
-func newRouter() http.Handler {
-	router := http.NewServeMux()
+func newRouter() *echo.Echo {
+	router := echo.New()
 	controllers.Register(router)
-	return middleware.Use(router, middleware.UseLogging())
+	router.Use(echomiddleware.Logger())
+	return router
 }

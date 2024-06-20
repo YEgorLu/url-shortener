@@ -1,18 +1,18 @@
 package server
 
 import (
-	"net/http"
+	"github.com/labstack/echo/v4"
 )
 
-var server http.Server
+var server echo.Echo
 
 func Configure() {
-	server = http.Server{
-		Handler: newRouter(),
-	}
+	server = *newRouter()
 }
 
 func Run(addr string) error {
-	server.Addr = addr
-	return server.ListenAndServe()
+	for _, route := range server.Routes() {
+		server.Logger.Print(route.Method, "\n", route.Path, "\n", route.Name)
+	}
+	return server.Start(addr)
 }

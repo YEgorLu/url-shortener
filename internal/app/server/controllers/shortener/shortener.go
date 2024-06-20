@@ -4,69 +4,70 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/server/middleware"
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/storage"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 )
 
 type ShortenerController struct {
-	group *http.ServeMux
-	stor  storage.Storage
+	stor storage.Storage
 }
 
 func NewShortenerController() *ShortenerController {
 	return &ShortenerController{
-		http.NewServeMux(),
 		storage.Instance(),
 	}
 }
 
-func (c ShortenerController) RegisterRoute(mux *http.ServeMux) {
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" && r.Method == http.MethodPost {
-			middleware.Use(http.HandlerFunc(c.Register), middleware.UseContentType("text/html")).ServeHTTP(w, r)
-		} else if r.Method == http.MethodGet && len(strings.SplitN(r.URL.Path, "/", 3)) == 2 {
-			c.Redirect(w, r)
-		} else {
-			w.WriteHeader(http.StatusNotFound)
-		}
-	})
+func (c ShortenerController) RegisterRoute(mux *echo.Group) {
+	mux.POST("/", c.Register, middleware.UseContentType("text/html"))
+	mux.GET("/:code", c.Redirect)
 }
 
-func (c ShortenerController) Register(w http.ResponseWriter, r *http.Request) {
+func (_c ShortenerController) Register(c echo.Context) error {
+	r := c.Request()
+	w := c.Response().Writer
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		return
+		return echo.ErrBadRequest
 	}
 	url := string(body)
 	fmt.Println("url ", url)
 	if url == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		return
+		return echo.ErrBadRequest
 	}
-	newCode, err := c.stor.AddURL(url)
+	newCode, err := _c.stor.AddURL(url)
 	fmt.Println("code ", newCode)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		return
+		return echo.ErrBadRequest
 	}
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("http://localhost:8080/" + newCode))
+	c.Response().Header().Set("Content-Type", "text/plain")
+	return c.String(http.StatusCreated, "http://localhost:8080/"+newCode)
+	// w.Header().Set("Content-Type", "text/plain")
+	// w.WriteHeader(http.StatusCreated)
+	// w.Write([]byte("http://localhost:8080/" + newCode))
+	//return nil
 }
 
-func (c ShortenerController) Redirect(w http.ResponseWriter, r *http.Request) {
-	if len(r.URL.Path) <= 1 {
+func (_c ShortenerController) Redirect(c echo.Context) error {
+	//r := c.Request()
+	w := c.Response().Writer
+	code := c.Param("code")
+	log.Info("code ", code)
+	if len(code) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		return
+		return echo.ErrBadRequest
 	}
-	code := r.URL.Path[1:]
-	url, err := c.stor.GetURLByCode(code)
+	url, err := _c.stor.GetURLByCode(code)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		return
+		return echo.ErrBadRequest
 	}
-	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	//http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	return c.Redirect(http.StatusTemporaryRedirect, url)
 }
