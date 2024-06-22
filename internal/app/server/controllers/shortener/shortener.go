@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/config"
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/server/middleware"
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/storage"
 	"github.com/labstack/echo/v4"
@@ -22,7 +23,7 @@ func NewShortenerController() *ShortenerController {
 }
 
 func (c ShortenerController) RegisterRoute(mux *echo.Group) {
-	mux.POST("/", c.Register, middleware.UseContentType("text/html"))
+	mux.POST("/shorten", c.Register, middleware.UseContentType("text/html"))
 	mux.GET("/:code", c.Redirect)
 }
 
@@ -47,15 +48,10 @@ func (_c ShortenerController) Register(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 	c.Response().Header().Set("Content-Type", "text/plain")
-	return c.String(http.StatusCreated, "http://localhost:8080/"+newCode)
-	// w.Header().Set("Content-Type", "text/plain")
-	// w.WriteHeader(http.StatusCreated)
-	// w.Write([]byte("http://localhost:8080/" + newCode))
-	//return nil
+	return c.String(http.StatusCreated, config.Params.ShortUrlPrefix+"/"+newCode)
 }
 
 func (_c ShortenerController) Redirect(c echo.Context) error {
-	//r := c.Request()
 	w := c.Response().Writer
 	code := c.Param("code")
 	log.Info("code ", code)
@@ -68,6 +64,5 @@ func (_c ShortenerController) Redirect(c echo.Context) error {
 		w.WriteHeader(http.StatusBadRequest)
 		return echo.ErrBadRequest
 	}
-	//http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 	return c.Redirect(http.StatusTemporaryRedirect, url)
 }

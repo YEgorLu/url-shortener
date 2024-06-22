@@ -15,6 +15,6 @@ var controllers = []controller{
 
 func Register(mux *echo.Echo) {
 	for _, controller := range controllers {
-		controller.RegisterRoute(mux.Group(""))
+		controller.RegisterRoute(mux.Group("/api"))
 	}
 }

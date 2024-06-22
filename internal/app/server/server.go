@@ -1,6 +1,9 @@
 package server
 
 import (
+	"fmt"
+
+	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/config"
 	"github.com/labstack/echo/v4"
 )
 
@@ -10,9 +13,9 @@ func Configure() {
 	server = *newRouter()
 }
 
-func Run(addr string) error {
+func Run() error {
 	for _, route := range server.Routes() {
-		server.Logger.Print(route.Method, "\n", route.Path, "\n", route.Name)
+		fmt.Printf("path: %s; method: %s; name: %s\r\n", route.Path, route.Method, route.Name)
 	}
-	return server.Start(addr)
+	return server.Start(config.Params.ServerAddress)
 }
