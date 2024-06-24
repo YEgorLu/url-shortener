@@ -12,7 +12,7 @@ var Params struct {
 
 func init() {
 	flag.StringVar(&Params.ServerAddress, "a", "localhost:8080", "Server address like localhost:8080")
-	flag.StringVar(&Params.ShortUrlPrefix, "b", "localhost:8080", "Prefix of short url like (localhost:8080)/url_code")
+	flag.StringVar(&Params.ShortUrlPrefix, "b", "http://localhost:8080", "Prefix of short url like (localhost:8080)/url_code")
 
 	for _, v := range []struct {
 		from string

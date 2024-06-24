@@ -1,6 +1,7 @@
 package shortener
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/models/shorten"
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/storage"
 	"github.com/YEgorLu/go-musthave-shortener-tpl/internal/app/util"
 	"github.com/labstack/echo/v4"
@@ -53,9 +55,9 @@ func TestShortenerController_Register(t *testing.T) {
 		args args
 		want want
 	}{
-		{name: "initial url", args: args{"http://some.url.com"}, want: want{http.StatusCreated}},
-		{name: "existing url", args: args{"http://some.url.com"}, want: want{http.StatusBadRequest}},
-		{name: "new url", args: args{"hhtp://some.other.url.com"}, want: want{http.StatusCreated}},
+		{name: "initial url", args: args{`{"url":"http://some.url.com"}`}, want: want{http.StatusCreated}},
+		{name: "existing url", args: args{`{"url"":"http://some.url.com"}`}, want: want{http.StatusBadRequest}},
+		{name: "new url", args: args{`{"url":"hhtp://some.other.url.com"}`}, want: want{http.StatusCreated}},
 	}
 
 	c := NewShortenerController()
@@ -85,8 +87,12 @@ func TestShortenerController_Register(t *testing.T) {
 				defer res.Body.Close()
 				assert.Empty(t, body)
 			} else {
-				assert.Equal(t, "text/plain", res.Header.Get("Content-Type"))
-				assert.Regexp(t, "/[0-9_a-zA-Z]{10}$", w.Body.String())
+				var body shorten.Response
+				if err := json.NewDecoder(w.Result().Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
+				assert.Regexp(t, "/[0-9_a-zA-Z]{10}$", body.Result)
 			}
 		})
 	}
@@ -108,8 +114,8 @@ func TestShortenerController_Redirect(t *testing.T) {
 		args args
 		want want
 	}{
-		{name: "normal use", args: args{"http://some.url.com", true}, want: want{http.StatusTemporaryRedirect}},
-		{name: "another use", args: args{"http://some.another.url.com", true}, want: want{http.StatusTemporaryRedirect}},
+		{name: "normal use", args: args{`{"url":"http://some.url.com"}`, true}, want: want{http.StatusTemporaryRedirect}},
+		{name: "another use", args: args{`{"url":"http://some.another.url.com"}`, true}, want: want{http.StatusTemporaryRedirect}},
 		{name: "no registered code", args: args{"", false}, want: want{http.StatusBadRequest}},
 	}
 
@@ -123,12 +129,13 @@ func TestShortenerController_Redirect(t *testing.T) {
 				ctx1 := e.NewContext(rReg, wReg)
 				defer e.ReleaseContext(ctx1)
 				c.Register(ctx1)
-				redirectUrlBytes, err := io.ReadAll(wReg.Result().Body)
-				if err != nil {
+				var resp shorten.Response
+				if err := json.NewDecoder(wReg.Result().Body).Decode(&resp); err != nil {
 					t.Fatal("Error reading response body")
 				}
-				redirectUrl := string(redirectUrlBytes)
-				code = strings.Split(redirectUrl, "/")[3] // http://localhost:8080/TvRWs1XPcW
+				t.Log(resp.Result)
+				code = strings.Split(resp.Result, "/")[3] // http://localhost:8080/TvRWs1XPcW
+				t.Log(code)
 			}
 			wRed := httptest.NewRecorder()
 			rRed := httptest.NewRequest(http.MethodGet, "/"+code, nil)
